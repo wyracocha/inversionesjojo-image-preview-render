@@ -2,30 +2,8 @@ import bpy
 import math
 import sys
 import os
-import subprocess
 
-def find_ffmpeg():
-    """Busca ffmpeg: primero en el directorio de Blender, luego en el PATH del sistema."""
-    # Blender incluye su propio ffmpeg en el directorio de instalación
-    blender_exec = sys.argv[0]
-    blender_dir = os.path.dirname(os.path.realpath(blender_exec))
-    ffmpeg_paths = [
-        os.path.join(blender_dir, "ffmpeg"),        # Linux/Mac
-        os.path.join(blender_dir, "ffmpeg.exe"),    # Windows
-    ]
-    for path in ffmpeg_paths:
-        if os.path.isfile(path):
-            return path
 
-    # Si no está junto a Blender, buscar en el sistema
-    try:
-        result = subprocess.run(["ffmpeg", "-version"], capture_output=True)
-        if result.returncode == 0:
-            return "ffmpeg"
-    except FileNotFoundError:
-        pass
-
-    return None
 
 def main():
     # Obtener argumentos después de "--"
@@ -119,39 +97,6 @@ def main():
         bpy.ops.render.render(write_still=True)
         print(f"  Frame {i+1:02d}/{n_frames} -> {os.path.basename(frame_path)}")
 
-    print(f"\nFrames completados. Generando video MP4...")
-
-    # 7. Generar MP4 con ffmpeg
-    ffmpeg = find_ffmpeg()
-    if ffmpeg is None:
-        print("AVISO: ffmpeg no encontrado. Instálalo con: sudo apt install ffmpeg")
-        print("Puedes crear el video manualmente con:")
-        print(f"  ffmpeg -framerate 24 -i '{output_dir}/frame_%04d.png' -c:v libx264 -pix_fmt yuv420p '{output_dir}/render_360.mp4'")
-        return
-
-    video_path = os.path.join(output_dir, "render_360.mp4")
-    cmd = [
-        ffmpeg,
-        "-y",                       # Sobreescribir si existe
-        "-framerate", "24",
-        "-i", os.path.join(output_dir, "frame_%04d.png"),
-        "-c:v", "libx264",
-        "-preset", "slow",
-        "-crf", "18",               # Calidad alta (0=sin pérdida, 51=peor)
-        "-pix_fmt", "yuv420p",      # Compatibilidad máxima con reproductores
-        video_path
-    ]
-
-    print(f"Ejecutando: {' '.join(cmd)}")
-    result = subprocess.run(cmd, capture_output=True, text=True)
-
-    if result.returncode == 0:
-        print(f"\n✓ Proceso finalizado correctamente.")
-        print(f"  Frames PNG : {output_dir}/frame_*.png")
-        print(f"  Video MP4  : {video_path}")
-    else:
-        print(f"\n✗ Error al generar el video con ffmpeg:")
-        print(result.stderr[-2000:])  # Mostrar los últimos 2000 chars del error
 
 
 if __name__ == "__main__":

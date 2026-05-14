@@ -1,49 +1,124 @@
-# Documentación del Script de Renderizado 360°
+# Renderizado 360° de Modelos 3D
 
-Este script (`main.py`) automatiza el proceso de importación de modelos 3D (STL/OBJ), configuración de iluminación, renderizado de una rotación de 360 grados en imágenes PNG y la generación final de un video MP4.
+Genera una animación de 360° a partir de un modelo 3D (STL/OBJ) en dos pasos independientes:
 
-## Requisitos del Sistema
+1. **`main.py`** — Renderiza los frames PNG usando Blender dentro de un contenedor Docker.
+2. **`render.py`** — Ensambla los frames en un video MP4 usando FFmpeg.
 
-Para ejecutar este script correctamente, es necesario tener instalados los siguientes componentes:
+---
 
-### 1. Blender
-El script utiliza la API interna de Blender (`bpy`), por lo que debe ejecutarse utilizando el ejecutable de Blender.
-- **Descarga:** [blender.org/download](https://www.blender.org/download/)
-- **Versión recomendada:** 3.0 o superior (compatible con `wm.stl_import` y `wm.obj_import`).
+## Requisitos
 
-### 2. FFmpeg
-Utilizado para convertir la secuencia de imágenes PNG en un archivo de video MP4.
-- **Instalación en Windows:**
-  1. Descarga los binarios desde [ffmpeg.org](https://ffmpeg.org/download.html) o usa un gestor de paquetes como `choco install ffmpeg`.
-  2. Asegúrate de añadir la carpeta `bin` de FFmpeg a las **Variables de Entorno (PATH)** del sistema.
-  - *Nota: El script también intentará buscar `ffmpeg.exe` dentro de la carpeta donde esté instalado Blender.*
+| Herramienta | Uso | Instalación |
+|-------------|-----|-------------|
+| **Docker** | Corre Blender para generar los frames | [docs.docker.com](https://docs.docker.com/get-docker/) |
 
-## Archivos Necesarios
+> La imagen Docker `lscr.io/linuxserver/blender:latest` incluye Blender y se descarga automáticamente en el primer uso.
 
-1. **`main.py`**: El script principal de procesamiento.
-2. **Modelo 3D**: Archivo en formato `.stl` o `.obj` que se desea renderizar.
+---
 
-## Instrucciones de Ejecución
+## Estructura esperada del proyecto
 
-El script se debe ejecutar desde la terminal (CMD o PowerShell) pasando los argumentos a Blender en modo "background" (`-b`).
-
-### Sintaxis básica:
-```bash
-blender -b -P "main.py" -- "ruta/al/modelo.stl" ["carpeta_de_salida"]
+```
+inversionesjojo-image-preview-render/
+├── main.py          # Script de renderizado (corre dentro de Docker)
+├── render.py        # Script de ensamblado de video (corre en el host)
+├── Makefile
+├── tests/
+│   └── capibara-stl.stl   # Modelos de prueba
+└── output/          # Carpeta generada automáticamente con los frames PNG
 ```
 
-### Ejemplo:
+---
+
+## Paso 1 — Generar los frames PNG
+
+Usa el target `generate_image_render` del Makefile. El modelo debe estar dentro del proyecto (ruta relativa desde la raíz).
+
+### Sintaxis
 ```bash
-blender -b -P "C:\Users\NOSTROMO\Downloads\main.py" -- "C:\Users\NOSTROMO\Downloads\mi_modelo.stl"
+make generate_image_render STL=<ruta/relativa/al/modelo.stl>
 ```
 
-## Detalles del Proceso
-1. **Limpieza:** Se eliminan todos los objetos existentes en la escena.
-2. **Importación:** Se carga el modelo y se centra automáticamente en el origen (0,0,0).
-3. **Iluminación:** Se configura un esquema de 3 puntos de luz (Key, Fill, Rim) para resaltar los detalles del modelo.
-4. **Renderizado:** Se generan 36 cuadros (frames) en formato PNG.
-5. **Video:** FFmpeg une los cuadros en un archivo llamado `render_360.mp4` a 24 fps.
+### Ejemplo
+```bash
+make generate_image_render STL=tests/capibara-stl.stl
+```
+
+Esto ejecuta Blender en Docker con los siguientes volúmenes montados:
+
+| Host | Contenedor | Descripción |
+|------|-----------|-------------|
+| `$(PWD)/$(STL)` | `/data/model.stl` | Archivo del modelo |
+| `$(PWD)/main.py` | `/data/main.py` | Script de renderizado |
+| `$(PWD)/output/` | `/data/output` | Carpeta de salida de frames |
+
+### Resultado
+```
+output/
+  frame_0000.png
+  frame_0001.png
+  ...
+  frame_0035.png
+```
+
+---
+
+## Paso 2 — Generar el video MP4
+
+Usa el target `generate_video_render` del Makefile. Lee los frames de la carpeta `output/` y genera el archivo `render_360.mp4` en la misma carpeta.
+
+### Sintaxis
+```bash
+make generate_video_render
+```
+
+No requiere parámetros — siempre lee de `./output/` y escribe en `./output/render_360.mp4`.
+
+### Resultado
+```
+output/
+  frame_0000.png
+  frame_0001.png
+  ...
+  frame_0035.png
+  render_360.mp4   ← generado por este comando
+```
+
+> Usa la imagen `linuxserver/ffmpeg` en Docker, por lo que no necesitas FFmpeg instalado en el host.
+
+---
+
+## Parámetros del video generado
+
+| Parámetro    | Valor     | Descripción                                      |
+|--------------|-----------|--------------------------------------------------|
+| Codec        | `libx264` | H.264, amplia compatibilidad con reproductores   |
+| Framerate    | `24 fps`  | Velocidad de reproducción                        |
+| CRF          | `18`      | Alta calidad (0 = sin pérdida, 51 = mínima)      |
+| Pixel format | `yuv420p` | Máxima compatibilidad (VLC, Windows Media, etc.) |
+| Preset       | `slow`    | Mejor compresión al mismo nivel de calidad       |
+
+---
+
+## Detalles del proceso de renderizado (`main.py`)
+
+1. **Limpieza:** Se eliminan todos los objetos existentes en la escena de Blender.
+2. **Importación:** Se carga el modelo y se centra automáticamente en el origen `(0, 0, 0)`.
+3. **Iluminación:** Esquema de 3 puntos de luz:
+   - **Key (principal):** Frontal-derecha, elevación 45°, energía 3.
+   - **Fill (relleno):** Izquierda, altura media, energía 1.5.
+   - **Rim (contorno):** Trasera, ligeramente abajo, energía 2.
+4. **Cámara:** Orbita alrededor del modelo a distancia `max_dim × 3.5`.
+5. **Frames:** 36 imágenes PNG (una cada 10° de rotación).
+
+---
 
 ## Solución de Problemas
-- **Error: 'blender' no se reconoce...**: Asegúrate de que la ruta al ejecutable de Blender esté en tu PATH o usa la ruta completa (ej. `"C:\Program Files\Blender Foundation\Blender 4.0\blender.exe"`).
-- **FFmpeg no encontrado**: Si el script termina sin generar el video, instala FFmpeg y reinicia la terminal.
+
+| Problema | Solución |
+|----------|----------|
+| `Cannot connect to the Docker daemon` | Asegúrate de que Docker Desktop esté corriendo. |
+| `No se encontraron archivos frame_*.png` | Verifica que el Paso 1 haya completado sin errores y que la carpeta `output/` exista. |
+| `FFmpeg no encontrado` | Instala FFmpeg y reinicia la terminal para que el PATH se actualice. |
+| Formato no soportado | Solo se aceptan archivos `.stl` y `.obj`. |

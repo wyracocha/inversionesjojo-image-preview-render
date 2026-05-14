@@ -15,6 +15,17 @@ Genera una animación de 360° a partir de un modelo 3D (STL/OBJ) en dos pasos i
 
 > La imagen Docker `lscr.io/linuxserver/blender:latest` incluye Blender y se descarga automáticamente en el primer uso.
 
+> [!IMPORTANT]
+> **Usuarios de Windows:** Los comandos del `Makefile` (y `make` en general) funcionan mejor si los ejecutas desde **WSL** (Windows Subsystem for Linux).
+> El `Makefile` usa `$(PWD)` y sintaxis de montaje de volúmenes que son nativas de shells Unix.
+> Si los ejecutas desde PowerShell o CMD podrías tener problemas con las rutas y los volúmenes de Docker.
+>
+> ```bash
+> # Abre tu terminal WSL y navega al proyecto, por ejemplo:
+> cd /my-directory
+> make generate_image_render STL=tests/capibara-stl.stl
+> ```
+
 ---
 
 ## Estructura esperada del proyecto

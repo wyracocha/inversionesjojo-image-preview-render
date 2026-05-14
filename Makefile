@@ -1,3 +1,6 @@
+# Previene que Git Bash (MSYS2) convierta rutas como /data/... a C:/Program Files/...
+export MSYS_NO_PATHCONV=1
+
 # Parámetros para generate_image_render (pasar con VAR=valor al ejecutar make)
 STL     ?= modelo.stl   # Nombre del archivo .stl dentro del contenedor
 OUT_DIR ?= /output      # Carpeta de salida dentro del contenedor
@@ -25,3 +28,4 @@ generate_video_render:
 		-crf 18 \
 		-pix_fmt yuv420p \
 		/data/output/render_360.mp4
+all: generate_image_render generate_video_render

@@ -100,6 +100,24 @@ output/
 
 ---
 
+## Todo en un solo paso (`make all`)
+
+Si deseas ejecutar tanto la generación de frames como el ensamblado del video de manera secuencial, puedes usar el target `all` del `Makefile`.
+
+### Sintaxis
+```bash
+make all STL=<ruta/relativa/al/modelo.stl>
+```
+
+### Ejemplo
+```bash
+make all STL=tests/capibara-stl.stl
+```
+
+Este comando renderiza los frames en la carpeta `output/` e inmediatamente después usa FFmpeg para ensamblarlos en `render_360.mp4`, simplificando todo el flujo.
+
+---
+
 ## Parámetros del video generado
 
 | Parámetro    | Valor     | Descripción                                      |

@@ -10,7 +10,7 @@ generate_image_render:
 	docker run \
 		--rm \
 		-e TZ=America/Lima \
-		-v "$(PWD)/$(STL):/data/model.stl" \
+		-v "$(STL):/data/model.stl" \
 		-v "$(PWD)/main.py:/data/main.py" \
 		-v "$(PWD)/output:/data/output" \
 		lscr.io/linuxserver/blender:latest blender -b -P /data/main.py -- /data/model.stl /data/output

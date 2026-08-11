@@ -80,7 +80,7 @@ def main():
     # 5. Configurar Render de imágenes
     scene = bpy.context.scene
     scene.render.image_settings.file_format = 'PNG'
-    n_frames = 36
+    n_frames = 12
 
     os.makedirs(output_dir, exist_ok=True)
 
